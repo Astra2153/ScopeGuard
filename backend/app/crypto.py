@@ -43,3 +43,48 @@ def decrypt(token: str, aad: str) -> str:
 def keyed_hash(value: str) -> str:
     """HMAC-SHA256 with a server-side key: stolen hashes cannot be brute-forced without the key."""
     return hmac.new(_subkey(b"hmac-sha256"), value.encode(), hashlib.sha256).hexdigest()
+
+
+from cryptography.exceptions import InvalidSignature  # noqa: E402
+from cryptography.hazmat.primitives import serialization  # noqa: E402
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (  # noqa: E402
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+)
+
+
+def _signing_key() -> Ed25519PrivateKey:
+    # The seed is derived from the master key with its own label (key separation).
+    return Ed25519PrivateKey.from_private_bytes(_subkey(b"ed25519-signing"))
+
+
+def public_key_bytes() -> bytes:
+    return _signing_key().public_key().public_bytes(
+        serialization.Encoding.Raw, serialization.PublicFormat.Raw
+    )
+
+
+def public_key_b64() -> str:
+    return base64.b64encode(public_key_bytes()).decode()
+
+
+def key_id() -> str:
+    """Short fingerprint of the public key, so a report says which key signed it."""
+    return hashlib.sha256(public_key_bytes()).hexdigest()[:16]
+
+
+def sign_bytes(data: bytes) -> str:
+    return base64.b64encode(_signing_key().sign(data)).decode()
+
+
+def verify_signature(data: bytes, signature_b64: str, public_key: bytes | None = None) -> bool:
+    try:
+        key = (
+            Ed25519PublicKey.from_public_bytes(public_key)
+            if public_key
+            else _signing_key().public_key()
+        )
+        key.verify(base64.b64decode(signature_b64, validate=True), data)
+        return True
+    except (InvalidSignature, ValueError):
+        return False

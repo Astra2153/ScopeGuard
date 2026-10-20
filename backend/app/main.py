@@ -5,6 +5,7 @@ from app.auth import router as auth_router
 from app.authz import router as authz_router
 from app.engagements import router as engagements_router
 from app.mfa import router as mfa_router
+from app.reports import router as reports_router
 from app.scans import router as scans_router
 from app.targets import router as targets_router
 
@@ -15,6 +16,7 @@ app.include_router(engagements_router)
 app.include_router(targets_router)
 app.include_router(scans_router)
 app.include_router(authz_router)
+app.include_router(reports_router)
 app.include_router(audit_router)
 
 
