@@ -163,7 +163,7 @@ class FetchResult:
     set_cookies: list | None = None
 
 
-def safe_get(origin_url: str, path: str, *, max_bytes: int = 65536, timeout: float = 5.0, extra_headers: dict | None = None) -> FetchResult:
+def safe_get(origin_url: str, path: str, *, max_bytes: int = 65536, timeout: float = 5.0, extra_headers: dict | None = None, auth_headers: dict | None = None) -> FetchResult:
     """GET only. Validated and pinned address, no redirects, size and time limits."""
     origin = parse_origin(origin_url)
     if not path.startswith("/") or any(ord(c) <= 0x20 or ord(c) == 0x7F or c == "\\" for c in path):
@@ -178,6 +178,16 @@ def safe_get(origin_url: str, path: str, *, max_bytes: int = 65536, timeout: flo
     if extra_headers:
         # Only Origin may be added; Host and everything else stay under our control.
         headers.update({k: v for k, v in extra_headers.items() if k.lower() == "origin"})
+    if auth_headers:
+        for name, value in auth_headers.items():
+            if (
+                name.lower() not in ("authorization", "cookie")
+                or not isinstance(value, str)
+                or not value.isascii()
+                or any(ord(c) < 0x20 or ord(c) == 0x7F for c in value)
+            ):
+                raise TargetRejected("invalid auth header")
+            headers[name] = value  # sent only to the validated, pinned address; redirects are off
     extensions = {}
     if origin.scheme == "https" and not origin.host_is_ip:
         extensions["sni_hostname"] = origin.host  # certificate is checked against the real name
@@ -209,4 +219,5 @@ def safe_get(origin_url: str, path: str, *, max_bytes: int = 65536, timeout: flo
             last_error = exc
             continue
     raise last_error
+
 
