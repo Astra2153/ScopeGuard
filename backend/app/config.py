@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     session_hours: int = 8
     cookie_secure: bool = False  # set COOKIE_SECURE=true in .env once served over HTTPS
     rate_limit_enabled: bool = True
+    master_key: str = ""  # base64 of 32 random bytes, from MASTER_KEY in .env
 
 
 settings = Settings()

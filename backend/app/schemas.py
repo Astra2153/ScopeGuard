@@ -18,6 +18,7 @@ class LoginIn(BaseModel):
 
     email: str = Field(max_length=320)
     password: str = Field(max_length=128)
+    otp: str | None = Field(default=None, max_length=32)
 
 
 def _not_blank(value: str) -> str:
@@ -49,3 +50,17 @@ class FindingStatusIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: Literal["open", "fixed", "partially_fixed", "not_fixed"]
+
+
+
+class MfaCodeIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str = Field(min_length=1, max_length=32)
+
+
+class MfaDisableIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    password: str = Field(max_length=128)
+    code: str = Field(min_length=1, max_length=32)

@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
 from app.db import get_db
+from app.mfa import verify_second_factor
 from app.models import Session, User, utcnow
 from app.ratelimit import rate_limit
 from app.schemas import LoginIn, RegisterIn
@@ -24,6 +25,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 MAX_FAILED = 5
 LOCK_MINUTES = 15
 GENERIC_LOGIN_ERROR = "Invalid email or password"
+MFA_REQUIRED = "MFA code required"
+
+
+def record_failure(db: DbSession, user: User, now) -> None:
+    user.failed_logins += 1
+    if user.failed_logins >= MAX_FAILED:
+        user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
+        user.failed_logins = 0
+    db.commit()
 
 
 @router.post("/register", status_code=201, dependencies=[Depends(rate_limit("register", 5, 60))])
@@ -63,13 +73,16 @@ def login(
 
     if locked or not password_ok:
         if not locked:
-            user.failed_logins += 1
-            if user.failed_logins >= MAX_FAILED:
-                user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
-                user.failed_logins = 0
-            db.commit()
+            record_failure(db, user, now)
         # Same error whether locked, wrong password, or unknown email.
         raise HTTPException(status_code=401, detail=GENERIC_LOGIN_ERROR)
+
+    if user.mfa_enabled:
+        if not body.otp:
+            raise HTTPException(status_code=401, detail=MFA_REQUIRED)
+        if not verify_second_factor(db, user, body.otp):
+            record_failure(db, user, now)  # wrong MFA codes count toward lockout
+            raise HTTPException(status_code=401, detail=GENERIC_LOGIN_ERROR)
 
     user.failed_logins = 0
     user.locked_until = None
@@ -92,6 +105,7 @@ def me(user: User = Depends(get_current_user), session: Session = Depends(get_cu
         "id": str(user.id),
         "email": user.email,
         "role": user.role,
+        "mfa_enabled": user.mfa_enabled,
         "csrf_token": session.csrf_token,
     }
 
@@ -106,4 +120,3 @@ def logout(
     db.delete(session)
     db.commit()
     response.delete_cookie(COOKIE_NAME, path="/")
-
