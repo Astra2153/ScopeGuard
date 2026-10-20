@@ -1,9 +1,11 @@
 from fastapi import FastAPI, Request
 
 from app.auth import router as auth_router
+from app.engagements import router as engagements_router
 
 app = FastAPI(title="ScopeGuard", docs_url="/docs")
 app.include_router(auth_router)
+app.include_router(engagements_router)
 
 
 @app.middleware("http")
