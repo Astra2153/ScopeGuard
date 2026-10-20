@@ -6,6 +6,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://scopeguard:change_me_dev_only@127.0.0.1:5433/scopeguard"
     app_env: str = "development"
+    session_hours: int = 8
+    cookie_secure: bool = False  # set COOKIE_SECURE=true in .env once served over HTTPS
 
 
 settings = Settings()

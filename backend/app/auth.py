@@ -1,14 +1,22 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session as DbSession
 
 from app.db import get_db
-from app.models import User, utcnow
+from app.models import Session, User, utcnow
 from app.schemas import LoginIn, RegisterIn
-from app.security import DUMMY_HASH, hash_password, needs_rehash, verify_password
+from app.security import DUMMY_HASH, hash_password, hash_token, needs_rehash, verify_password
+from app.sessions import (
+    COOKIE_NAME,
+    create_session,
+    get_current_session,
+    get_current_user,
+    require_csrf,
+    set_session_cookie,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -18,7 +26,7 @@ GENERIC_LOGIN_ERROR = "Invalid email or password"
 
 
 @router.post("/register", status_code=201)
-def register(body: RegisterIn, db: Session = Depends(get_db)):
+def register(body: RegisterIn, db: DbSession = Depends(get_db)):
     user = User(
         email=body.email.strip().lower(),
         password_hash=hash_password(body.password),
@@ -34,7 +42,12 @@ def register(body: RegisterIn, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(body: LoginIn, db: Session = Depends(get_db)):
+def login(
+    body: LoginIn,
+    response: Response,
+    sg_session: str | None = Cookie(default=None),
+    db: DbSession = Depends(get_db),
+):
     email = body.email.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
 
@@ -54,7 +67,7 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
                 user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
                 user.failed_logins = 0
             db.commit()
-        # Same error whether the account is locked, the password is wrong, or the email is unknown.
+        # Same error whether locked, wrong password, or unknown email.
         raise HTTPException(status_code=401, detail=GENERIC_LOGIN_ERROR)
 
     user.failed_logins = 0
@@ -62,5 +75,33 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
     db.commit()
-    # Session creation and MFA are added in the next step.
-    return {"status": "ok"}
+
+    # Session rotation: drop any session the browser sent, always issue a brand-new one.
+    if sg_session:
+        db.execute(delete(Session).where(Session.token_hash == hash_token(sg_session)))
+        db.commit()
+    token, row = create_session(db, user)
+    set_session_cookie(response, token)
+    return {"status": "ok", "csrf_token": row.csrf_token}
+
+
+@router.get("/me")
+def me(user: User = Depends(get_current_user), session: Session = Depends(get_current_session)):
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "role": user.role,
+        "csrf_token": session.csrf_token,
+    }
+
+
+@router.post("/logout", status_code=204)
+def logout(
+    response: Response,
+    session: Session = Depends(get_current_session),
+    _csrf: None = Depends(require_csrf),
+    db: DbSession = Depends(get_db),
+):
+    db.delete(session)
+    db.commit()
+    response.delete_cookie(COOKIE_NAME, path="/")
