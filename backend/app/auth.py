@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.db import get_db
 from app.models import Session, User, utcnow
+from app.ratelimit import rate_limit
 from app.schemas import LoginIn, RegisterIn
 from app.security import DUMMY_HASH, hash_password, hash_token, needs_rehash, verify_password
 from app.sessions import (
@@ -25,7 +26,7 @@ LOCK_MINUTES = 15
 GENERIC_LOGIN_ERROR = "Invalid email or password"
 
 
-@router.post("/register", status_code=201)
+@router.post("/register", status_code=201, dependencies=[Depends(rate_limit("register", 5, 60))])
 def register(body: RegisterIn, db: DbSession = Depends(get_db)):
     user = User(
         email=body.email.strip().lower(),
@@ -41,7 +42,7 @@ def register(body: RegisterIn, db: DbSession = Depends(get_db)):
     return {"id": str(user.id), "email": user.email, "role": user.role}
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(rate_limit("login", 10, 60))])
 def login(
     body: LoginIn,
     response: Response,
@@ -105,3 +106,4 @@ def logout(
     db.delete(session)
     db.commit()
     response.delete_cookie(COOKIE_NAME, path="/")
+

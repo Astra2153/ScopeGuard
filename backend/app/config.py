@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     session_hours: int = 8
     cookie_secure: bool = False  # set COOKIE_SECURE=true in .env once served over HTTPS
+    rate_limit_enabled: bool = True
 
 
 settings = Settings()
