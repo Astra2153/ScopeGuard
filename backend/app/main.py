@@ -4,6 +4,7 @@ from app.audit import router as audit_router
 from app.auth import router as auth_router
 from app.engagements import router as engagements_router
 from app.mfa import router as mfa_router
+from app.scans import router as scans_router
 from app.targets import router as targets_router
 
 app = FastAPI(title="ScopeGuard", docs_url="/docs")
@@ -11,6 +12,7 @@ app.include_router(auth_router)
 app.include_router(mfa_router)
 app.include_router(engagements_router)
 app.include_router(targets_router)
+app.include_router(scans_router)
 app.include_router(audit_router)
 
 

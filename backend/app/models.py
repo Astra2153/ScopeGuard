@@ -84,6 +84,8 @@ class Finding(Base):
     severity: Mapped[str] = mapped_column(String(20), default="info")
     status: Mapped[str] = mapped_column(String(20), default="open")
     description: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(20), default="manual", server_default="manual")
+    fingerprint: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -124,3 +126,14 @@ class BackupCode(Base):
     used: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
+
+
+
+from sqlalchemy import Index  # noqa: E402
+
+Index(
+    "uq_findings_engagement_fingerprint",
+    Finding.__table__.c.engagement_id,
+    Finding.__table__.c.fingerprint,
+    unique=True,
+)

@@ -159,9 +159,11 @@ class FetchResult:
     status: int
     body: bytes
     truncated: bool
+    headers: dict | None = None
+    set_cookies: list | None = None
 
 
-def safe_get(origin_url: str, path: str, *, max_bytes: int = 65536, timeout: float = 5.0) -> FetchResult:
+def safe_get(origin_url: str, path: str, *, max_bytes: int = 65536, timeout: float = 5.0, extra_headers: dict | None = None) -> FetchResult:
     """GET only. Validated and pinned address, no redirects, size and time limits."""
     origin = parse_origin(origin_url)
     if not path.startswith("/") or any(ord(c) <= 0x20 or ord(c) == 0x7F or c == "\\" for c in path):
@@ -173,6 +175,9 @@ def safe_get(origin_url: str, path: str, *, max_bytes: int = 65536, timeout: flo
         "Accept": "text/plain, */*;q=0.1",
         "Accept-Encoding": "identity",
     }
+    if extra_headers:
+        # Only Origin may be added; Host and everything else stay under our control.
+        headers.update({k: v for k, v in extra_headers.items() if k.lower() == "origin"})
     extensions = {}
     if origin.scheme == "https" and not origin.host_is_ip:
         extensions["sni_hostname"] = origin.host  # certificate is checked against the real name
@@ -199,8 +204,9 @@ def safe_get(origin_url: str, path: str, *, max_bytes: int = 65536, timeout: flo
                         if total > max_bytes:
                             truncated = True
                             break
-                    return FetchResult(resp.status_code, b"".join(chunks)[:max_bytes], truncated)
+                    return FetchResult(resp.status_code, b"".join(chunks)[:max_bytes], truncated, dict(resp.headers), resp.headers.get_list("set-cookie"))
         except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
             last_error = exc
             continue
     raise last_error
+

@@ -31,6 +31,7 @@ def finding_out(f: Finding) -> dict:
         "title": f.title,
         "severity": f.severity,
         "status": f.status,
+        "source": f.source,
         "description": f.description,
         "created_at": f.created_at.isoformat(),
     }
@@ -151,3 +152,4 @@ def delete_finding(
     db.delete(finding)
     db.commit()
     log_event(db, "finding_deleted", user.id, f"finding={fid}")
+
