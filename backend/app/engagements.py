@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from app.access import get_engagement_or_404, get_finding_or_404, require_role
+from app.audit import log_event
 from app.db import get_db
 from app.models import Engagement, Finding, User
 from app.schemas import EngagementIn, FindingIn, FindingStatusIn
@@ -45,6 +46,7 @@ def create_engagement(
     eng = Engagement(owner_id=user.id, name=body.name)  # owner comes from the session
     db.add(eng)
     db.commit()
+    log_event(db, "engagement_created", user.id, f"engagement={eng.id}")
     return eng_out(eng)
 
 
@@ -72,8 +74,11 @@ def delete_engagement(
     _csrf: None = Depends(require_csrf),
     db: DbSession = Depends(get_db),
 ):
-    db.delete(get_engagement_or_404(db, user, engagement_id))
+    eng = get_engagement_or_404(db, user, engagement_id)
+    eng_id = eng.id
+    db.delete(eng)
     db.commit()
+    log_event(db, "engagement_deleted", user.id, f"engagement={eng_id}")
 
 
 @router.post("/engagements/{engagement_id}/findings", status_code=201)
@@ -93,6 +98,7 @@ def create_finding(
     )
     db.add(finding)
     db.commit()
+    log_event(db, "finding_created", user.id, f"finding={finding.id} engagement={eng.id}")
     return finding_out(finding)
 
 
@@ -129,6 +135,7 @@ def update_finding_status(
     finding = get_finding_or_404(db, user, finding_id)
     finding.status = body.status
     db.commit()
+    log_event(db, "finding_status_changed", user.id, f"finding={finding.id} status={body.status}")
     return finding_out(finding)
 
 
@@ -139,5 +146,8 @@ def delete_finding(
     _csrf: None = Depends(require_csrf),
     db: DbSession = Depends(get_db),
 ):
-    db.delete(get_finding_or_404(db, user, finding_id))
+    finding = get_finding_or_404(db, user, finding_id)
+    fid = finding.id
+    db.delete(finding)
     db.commit()
+    log_event(db, "finding_deleted", user.id, f"finding={fid}")

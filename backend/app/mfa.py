@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session as DbSession
 
+from app.audit import log_event
 from app.crypto import decrypt, encrypt, keyed_hash
 from app.db import get_db
 from app.models import BackupCode, User
@@ -87,6 +88,7 @@ def setup(
     user.mfa_secret = encrypt(secret, aad=str(user.id))  # stored encrypted, never in plaintext
     user.mfa_last_step = 0
     db.commit()
+    log_event(db, "mfa_setup", user.id)
     uri = pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name="ScopeGuard")
     return {"secret": secret, "otpauth_uri": uri}  # shown once, so it can be added to an app
 
@@ -109,6 +111,7 @@ def enable(
     user.mfa_last_step = step
     codes = generate_backup_codes(db, user)
     db.commit()
+    log_event(db, "mfa_enabled", user.id)
     return {"backup_codes": codes}  # shown once; only keyed hashes are stored
 
 
@@ -125,9 +128,11 @@ def disable(
     if not verify_password(user.password_hash, body.password) or not verify_second_factor(
         db, user, body.code
     ):
+        log_event(db, "mfa_disable_failed", user.id)
         raise HTTPException(status_code=401, detail="Invalid credentials")
     user.mfa_enabled = False
     user.mfa_secret = None
     user.mfa_last_step = 0
     db.execute(delete(BackupCode).where(BackupCode.user_id == user.id))
     db.commit()
+    log_event(db, "mfa_disabled", user.id)

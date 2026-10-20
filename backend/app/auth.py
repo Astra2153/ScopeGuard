@@ -5,6 +5,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
+from app.audit import log_event
 from app.db import get_db
 from app.mfa import verify_second_factor
 from app.models import Session, User, utcnow
@@ -28,12 +29,16 @@ GENERIC_LOGIN_ERROR = "Invalid email or password"
 MFA_REQUIRED = "MFA code required"
 
 
-def record_failure(db: DbSession, user: User, now) -> None:
+def record_failure(db: DbSession, user: User, now) -> bool:
+    """Count a failed attempt. Returns True if this failure locked the account."""
     user.failed_logins += 1
+    locked_now = False
     if user.failed_logins >= MAX_FAILED:
         user.locked_until = now + timedelta(minutes=LOCK_MINUTES)
         user.failed_logins = 0
+        locked_now = True
     db.commit()
+    return locked_now
 
 
 @router.post("/register", status_code=201, dependencies=[Depends(rate_limit("register", 5, 60))])
@@ -49,6 +54,7 @@ def register(body: RegisterIn, db: DbSession = Depends(get_db)):
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Could not register with these details")
+    log_event(db, "register", user.id)
     return {"id": str(user.id), "email": user.email, "role": user.role}
 
 
@@ -65,6 +71,7 @@ def login(
     if user is None:
         # Spend similar time as a real check, then give the same generic error.
         verify_password(DUMMY_HASH, body.password)
+        log_event(db, "login_failed_unknown_account")  # the attempted email is NOT logged
         raise HTTPException(status_code=401, detail=GENERIC_LOGIN_ERROR)
 
     now = utcnow()
@@ -72,8 +79,13 @@ def login(
     password_ok = verify_password(user.password_hash, body.password)
 
     if locked or not password_ok:
-        if not locked:
-            record_failure(db, user, now)
+        if locked:
+            log_event(db, "login_blocked_locked", user.id)
+        else:
+            locked_now = record_failure(db, user, now)
+            log_event(db, "login_failed_bad_password", user.id)
+            if locked_now:
+                log_event(db, "account_locked", user.id)
         # Same error whether locked, wrong password, or unknown email.
         raise HTTPException(status_code=401, detail=GENERIC_LOGIN_ERROR)
 
@@ -81,7 +93,10 @@ def login(
         if not body.otp:
             raise HTTPException(status_code=401, detail=MFA_REQUIRED)
         if not verify_second_factor(db, user, body.otp):
-            record_failure(db, user, now)  # wrong MFA codes count toward lockout
+            locked_now = record_failure(db, user, now)  # wrong MFA codes count toward lockout
+            log_event(db, "login_failed_bad_mfa", user.id)
+            if locked_now:
+                log_event(db, "account_locked", user.id)
             raise HTTPException(status_code=401, detail=GENERIC_LOGIN_ERROR)
 
     user.failed_logins = 0
@@ -96,6 +111,7 @@ def login(
         db.commit()
     token, row = create_session(db, user)
     set_session_cookie(response, token)
+    log_event(db, "login_success", user.id)
     return {"status": "ok", "csrf_token": row.csrf_token}
 
 
@@ -117,6 +133,8 @@ def logout(
     _csrf: None = Depends(require_csrf),
     db: DbSession = Depends(get_db),
 ):
+    user_id = session.user_id
     db.delete(session)
     db.commit()
+    log_event(db, "logout", user_id)
     response.delete_cookie(COOKIE_NAME, path="/")
