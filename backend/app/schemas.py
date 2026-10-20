@@ -64,3 +64,9 @@ class MfaDisableIn(BaseModel):
 
     password: str = Field(max_length=128)
     code: str = Field(min_length=1, max_length=32)
+
+
+class TargetIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    base_url: str = Field(min_length=1, max_length=2000)

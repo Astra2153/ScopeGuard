@@ -3,7 +3,7 @@ import uuid
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session as DbSession
 
-from app.models import Engagement, Finding, User
+from app.models import Engagement, Finding, Target, User
 from app.sessions import get_current_user
 
 NOT_FOUND = "Not found"
@@ -38,3 +38,13 @@ def get_finding_or_404(db: DbSession, user: User, finding_id: uuid.UUID) -> Find
     if eng is None or not can_access(user, eng):
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     return finding
+
+
+def get_target_or_404(db: DbSession, user: User, target_id: uuid.UUID) -> Target:
+    target = db.get(Target, target_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    eng = db.get(Engagement, target.engagement_id)
+    if eng is None or not can_access(user, eng):
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return target

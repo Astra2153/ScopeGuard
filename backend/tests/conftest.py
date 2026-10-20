@@ -15,6 +15,7 @@ os.environ["DATABASE_URL"] = (
 
 from app.config import settings  # noqa: E402
 from app.ratelimit import reset_limits  # noqa: E402
+from labserver import LabServer  # noqa: E402
 
 # A fixed, obviously-fake key: the append-only audit chain persists between test runs,
 # so the key has to stay the same from run to run.
@@ -40,6 +41,21 @@ def _test_database():
 def _test_settings(monkeypatch):
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
     monkeypatch.setattr(settings, "master_key", TEST_MASTER_KEY)
+    monkeypatch.setattr(settings, "allow_private_targets", False)  # even if .env turns lab mode on
+    monkeypatch.setattr(settings, "app_env", "development")
     reset_limits()
     yield
     reset_limits()
+
+
+@pytest.fixture
+def lab_mode(monkeypatch):
+    monkeypatch.setattr(settings, "allow_private_targets", True)
+
+
+@pytest.fixture
+def lab_server():
+    srv = LabServer()
+    srv.start()
+    yield srv
+    srv.stop()

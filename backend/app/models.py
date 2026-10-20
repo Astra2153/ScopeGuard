@@ -60,6 +60,7 @@ class Target(Base):
     )
     base_url: Mapped[str] = mapped_column(String(2000))
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verification_token: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -122,3 +123,4 @@ class BackupCode(Base):
     code_hash: Mapped[str] = mapped_column(String(64), index=True)
     used: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+

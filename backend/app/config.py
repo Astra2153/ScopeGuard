@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     cookie_secure: bool = False  # set COOKIE_SECURE=true in .env once served over HTTPS
     rate_limit_enabled: bool = True
     master_key: str = ""  # base64 of 32 random bytes, from MASTER_KEY in .env
+    # Lab mode lets the scanner reach loopback/private addresses (local practice apps).
+    # It is honoured only when APP_ENV=development. Link-local and cloud-metadata
+    # ranges stay blocked even in lab mode.
+    allow_private_targets: bool = False
 
 
 settings = Settings()
