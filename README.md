@@ -2,7 +2,7 @@
 
 A secure engagement platform for application-security testers. Register an authorized target, prove you own it, run safe checks, test for broken object-level authorization with two identities, track findings through retesting, and export a cryptographically signed report.
 
-**Status:** backend complete (about 250 automated tests). Frontend, background worker and LLM drafter are not built yet.
+**Status:** backend complete (247 automated tests, CI green). Frontend, background worker and LLM drafter are not built yet.
 
 **How it was built:** step by step with AI assistance, as a learning project for an application-security internship. I reviewed the code and can explain each control and its limits (see the table below and SECURITY.md).
 
@@ -81,6 +81,44 @@ uvicorn app.main:app --reload
 
 Open http://127.0.0.1:8000/docs for the interactive API documentation.
 
+## Demo: find, fix, retest
+
+`tools/demo.py` drives the real API against a local practice target and writes two signed reports. It needs three PowerShell windows, each with the virtual environment active:
+
+| Window | Folder | Command |
+| --- | --- | --- |
+| A | `backend` | `uvicorn app.main:app` |
+| B | `backend` | `python ..\tools\lab_target.py` |
+| C | project root | `python tools/demo.py` |
+
+Local targets need `ALLOW_PRIVATE_TARGETS=true` in `.env` (honoured only when `APP_ENV=development`). The script:
+
+1. Registers a demo user, an engagement and a target, and proves ownership.
+2. Runs the configuration scan (8 findings) and the authorization matrix (confirms broken object-level authorization).
+3. Signs report 1, "fixes" the target, and marks every finding fixed.
+4. Re-scans. The fixes hold, but plain HTTP still reproduces, so that finding reopens as `not_fixed`.
+5. Signs report 2 and verifies both reports offline. A tampered copy fails verification.
+
+A fix is never accepted on trust: a later scan that still sees the issue reopens it.
+## Demo: find, fix, retest
+
+`tools/demo.py` drives the real API against a local practice target and writes two signed reports. It needs three PowerShell windows, each with the virtual environment active:
+
+| Window | Folder | Command |
+| --- | --- | --- |
+| A | `backend` | `uvicorn app.main:app` |
+| B | `backend` | `python ..\tools\lab_target.py` |
+| C | project root | `python tools/demo.py` |
+
+Local targets need `ALLOW_PRIVATE_TARGETS=true` in `.env` (honoured only when `APP_ENV=development`). The script:
+
+1. Registers a demo user, an engagement and a target, and proves ownership.
+2. Runs the configuration scan (8 findings) and the authorization matrix (confirms broken object-level authorization).
+3. Signs report 1, "fixes" the target, and marks every finding fixed.
+4. Re-scans. The fixes hold, but plain HTTP still reproduces, so that finding reopens as `not_fixed`.
+5. Signs report 2 and verifies both reports offline. A tampered copy fails verification.
+
+A fix is never accepted on trust: a later scan that still sees the issue reopens it.
 ## Tests
 
 ```powershell
@@ -110,3 +148,5 @@ Only scan systems you own or have written permission to test. The scanner refuse
 - There is no trusted timestamping, so a signed date does not prove when a report existed.
 - Rate limiting is in memory and per process. Production would use Redis.
 - Scans run inside the API request. A background worker is planned.
+
+

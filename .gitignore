@@ -6,3 +6,6 @@ node_modules/
 dist/
 .pytest_cache/
 *.key
+
+tools/lab_state/
+tools/demo_output/
