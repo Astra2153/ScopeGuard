@@ -53,7 +53,7 @@ The categories above are the official OWASP Top 10:2025 list, checked against ow
 Requirements: Python 3.11+, Docker Desktop, Git.
 
 ```powershell
-git clone <your-repo-url> ScopeGuard
+git clone https://github.com/Astra2153/ScopeGuard.git ScopeGuard
 cd ScopeGuard
 docker compose up -d
 cd backend
@@ -81,25 +81,6 @@ uvicorn app.main:app --reload
 
 Open http://127.0.0.1:8000/docs for the interactive API documentation.
 
-## Demo: find, fix, retest
-
-`tools/demo.py` drives the real API against a local practice target and writes two signed reports. It needs three PowerShell windows, each with the virtual environment active:
-
-| Window | Folder | Command |
-| --- | --- | --- |
-| A | `backend` | `uvicorn app.main:app` |
-| B | `backend` | `python ..\tools\lab_target.py` |
-| C | project root | `python tools/demo.py` |
-
-Local targets need `ALLOW_PRIVATE_TARGETS=true` in `.env` (honoured only when `APP_ENV=development`). The script:
-
-1. Registers a demo user, an engagement and a target, and proves ownership.
-2. Runs the configuration scan (8 findings) and the authorization matrix (confirms broken object-level authorization).
-3. Signs report 1, "fixes" the target, and marks every finding fixed.
-4. Re-scans. The fixes hold, but plain HTTP still reproduces, so that finding reopens as `not_fixed`.
-5. Signs report 2 and verifies both reports offline. A tampered copy fails verification.
-
-A fix is never accepted on trust: a later scan that still sees the issue reopens it.
 ## Demo: find, fix, retest
 
 `tools/demo.py` drives the real API against a local practice target and writes two signed reports. It needs three PowerShell windows, each with the virtual environment active:
@@ -148,5 +129,7 @@ Only scan systems you own or have written permission to test. The scanner refuse
 - There is no trusted timestamping, so a signed date does not prove when a report existed.
 - Rate limiting is in memory and per process. Production would use Redis.
 - Scans run inside the API request. A background worker is planned.
+
+
 
 
