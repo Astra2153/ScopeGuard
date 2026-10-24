@@ -1,0 +1,13 @@
+title = "ScopeGuard gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Throwaway development values that are public by design"
+regexes = [
+  '''change_me_dev_only''',
+]
+paths = [
+  '''backend/tests/conftest\.py''',
+]
