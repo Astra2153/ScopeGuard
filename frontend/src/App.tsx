@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import Layout from "./Layout";
+import EngagementDetailPage from "./pages/EngagementDetailPage";
 import EngagementsPage from "./pages/EngagementsPage";
 import LoginPage from "./pages/LoginPage";
 
@@ -17,6 +18,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<Protected />}>
         <Route path="/" element={<EngagementsPage />} />
+        <Route path="/engagements/:id" element={<EngagementDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

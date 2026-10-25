@@ -18,3 +18,20 @@ export function ErrorBox({ message }: { message: string | null }) {
     </div>
   );
 }
+
+export const sectionCls = "space-y-3 rounded-lg border border-slate-800 bg-slate-900 p-4";
+
+export function severityCls(severity: string): string {
+  switch (severity) {
+    case "critical":
+      return "bg-red-900 text-red-100";
+    case "high":
+      return "bg-orange-900 text-orange-100";
+    case "medium":
+      return "bg-yellow-900 text-yellow-100";
+    case "low":
+      return "bg-sky-900 text-sky-100";
+    default:
+      return "bg-slate-800 text-slate-300";
+  }
+}

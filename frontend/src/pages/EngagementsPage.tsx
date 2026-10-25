@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { btnCls, btnDangerCls, ErrorBox, inputCls } from "../ui";
@@ -81,7 +82,7 @@ export default function EngagementsPage() {
           {items.map((eng) => (
             <li key={eng.id} className="flex items-center justify-between px-4 py-3">
               <div>
-                <p className="font-medium">{eng.name}</p>
+                <Link to={`/engagements/${eng.id}`} className="font-medium text-emerald-400 hover:underline">{eng.name}</Link>
                 <p className="text-xs text-slate-400">
                   Created {new Date(eng.created_at).toLocaleString()}
                 </p>
@@ -98,3 +99,4 @@ export default function EngagementsPage() {
     </div>
   );
 }
+
