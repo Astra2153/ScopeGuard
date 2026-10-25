@@ -47,7 +47,7 @@ export default function TargetsSection({ engagementId, canWrite, onChanged }: Pr
     setError(null);
     try {
       await api("POST", `/targets/${id}/verify`);
-      note(id, "Ownership verified.");
+      note(id, "Ownership verified."); onChanged();
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Verification failed.");
@@ -157,3 +157,4 @@ export default function TargetsSection({ engagementId, canWrite, onChanged }: Pr
     </section>
   );
 }
+

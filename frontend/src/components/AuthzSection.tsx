@@ -3,7 +3,7 @@ import { api, ApiError } from "../api";
 import type { AuthzSummary, Target } from "../types";
 import { btnCls, ErrorBox, inputCls, sectionCls } from "../ui";
 
-type Props = { engagementId: string; canWrite: boolean; onChanged: () => void };
+type Props = { engagementId: string; canWrite: boolean; onChanged: () => void; refreshKey: number };
 
 const DEFAULT_SPEC = JSON.stringify(
   { openapi: "3.0.0", paths: { "/api/orders/{orderId}": { get: {} } } },
@@ -11,7 +11,7 @@ const DEFAULT_SPEC = JSON.stringify(
   2,
 );
 
-export default function AuthzSection({ engagementId, canWrite, onChanged }: Props) {
+export default function AuthzSection({ engagementId, canWrite, onChanged, refreshKey }: Props) {
   const [targets, setTargets] = useState<Target[]>([]);
   const [targetId, setTargetId] = useState("");
   const [specText, setSpecText] = useState(DEFAULT_SPEC);
@@ -32,7 +32,7 @@ export default function AuthzSection({ engagementId, canWrite, onChanged }: Prop
         if (verified.length > 0) setTargetId((current) => current || verified[0].id);
       })
       .catch(() => setTargets([]));
-  }, [engagementId]);
+  }, [engagementId, refreshKey]);
 
   if (!canWrite) return null;
 
@@ -166,3 +166,4 @@ export default function AuthzSection({ engagementId, canWrite, onChanged }: Prop
     </section>
   );
 }
+

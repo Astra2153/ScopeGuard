@@ -38,7 +38,7 @@ export default function EngagementDetailPage() {
         <>
           <h1 className="text-xl font-semibold">{engagement.name}</h1>
           <TargetsSection engagementId={id} canWrite={canWrite} onChanged={changed} />
-          <AuthzSection engagementId={id} canWrite={canWrite} onChanged={changed} />
+          <AuthzSection engagementId={id} canWrite={canWrite} onChanged={changed} refreshKey={refreshKey} />
           <FindingsSection engagementId={id} canWrite={canWrite} refreshKey={refreshKey} />
           <ReportsSection engagementId={id} canWrite={canWrite} refreshKey={refreshKey} />
         </>
@@ -46,3 +46,4 @@ export default function EngagementDetailPage() {
     </div>
   );
 }
+
